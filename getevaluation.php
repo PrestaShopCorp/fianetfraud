@@ -24,12 +24,24 @@
  *  International Registered Trademark & Property of PrestaShop SA
  */
 
-header('Expires: Mon, 26 Jul 1997 05:00:00 GMT');
-header('Last-Modified: '.gmdate('D, d M Y H:i:s').' GMT');
+include_once 'lib/includes/includes.inc.php';
 
-header('Cache-Control: no-store, no-cache, must-revalidate');
-header('Cache-Control: post-check=0, pre-check=0', false);
-header('Pragma: no-cache');
+require_once(dirname(__FILE__).'/../../config/config.inc.php');
+require_once(dirname(__FILE__).'/../../init.php');
 
-header('Location: ../');
-exit;
+include_once 'fianetfraud.php';
+
+
+if (_PS_VERSION_ < '1.5')
+	$certissim = new CertissimSac();
+else
+	$certissim = new CertissimSac(Context::getContext()->shop->id);
+
+/*token security*/
+if (Tools::getValue('token') == Tools::getAdminToken($certissim->getSiteid().$certissim->getLogin()))
+{
+	/*Get all FIA-NET evaluations*/
+	fianetfraud::getEvaluations();
+}
+else
+	header('Location: ../');
