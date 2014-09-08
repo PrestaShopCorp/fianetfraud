@@ -93,11 +93,12 @@ class Fianetfraud extends Module
 
 	const CERTISSIM_ORDER_TABLE_NAME = 'certissim_order';
 	const CERTISSIM_STATE_TABLE_NAME = 'certissim_state';
+	const CERTISSIM_ORDER_TABLE_NAME_TEMP = 'certissim_order_temp';
 
 	public function __construct()
 	{
 		$this->name = 'fianetfraud';
-		$this->version = '3.10';
+		$this->version = '3.11';
 		$this->tab = 'payment_security';
 		$this->author = 'Fia-Net';
 
@@ -125,6 +126,8 @@ class Fianetfraud extends Module
 	{
 		CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'Génération du fichier log');
 
+		$orders_saved = $this->saveCertissimOrders();
+		
 		/** database tables creation * */
 		$sqlfile = dirname(__FILE__).'/install.sql';
 		if (!file_exists($sqlfile) || !($sql = Tools::file_get_contents($sqlfile)))
@@ -149,6 +152,9 @@ class Fianetfraud extends Module
 				CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'Insertion state $id.$label échouée : '.Db::getInstance()->getMsgError());
 		}
 
+		if($orders_saved)
+			$this->restoreCertissimOrders();
+			
 		$tab_admin_order_id = Tab::getIdFromClassName('AdminOrders');
 
 		//AdminCertissimController registration
@@ -246,16 +252,15 @@ class Fianetfraud extends Module
 		foreach ($payments as $payment)
 		{
 			
-			$module = Module::getInstanceById($payment['id_module']);
 			//reloads submitted values if exists, loads conf otherwise
-			$certissim_type = Tools::isSubmit('certissim_'.$module->id.'_payment_type') ?
-				Tools::getValue('certissim_'.$module->id.'_payment_type') : Configuration::get('CERTISSIM_'.$module->id.'_PAYMENT_TYPE');
-			$certissim_enabled = Tools::isSubmit('certissim_'.$module->id.'_payment_enabled') ?
-				Tools::getValue('certissim_'.$module->id.'_payment_enabled') : Configuration::get('CERTISSIM_'.$module->id.'_PAYMENT_ENABLED');
+			$certissim_type = Tools::isSubmit('certissim_'.$payment['id_module'].'_payment_type') ?
+				Tools::getValue('certissim_'.$payment['id_module'].'_payment_type') : Configuration::get('CERTISSIM_'.$payment['id_module'].'_PAYMENT_TYPE');
+			$certissim_enabled = Tools::isSubmit('certissim_'.$payment['id_module'].'_payment_enabled') ?
+				Tools::getValue('certissim_'.$payment['id_module'].'_payment_enabled') : Configuration::get('CERTISSIM_'.$payment['id_module'].'_PAYMENT_ENABLED');
 			
-			if ($module->id != 0)
-				$payment_modules[$module->id] = array(
-					'name' => $module->displayName,
+			if ($payment['id_module'] != 0)
+				$payment_modules[$payment['id_module']] = array(
+					'name' => $payment['name'],
 					'certissim_type' => $certissim_type,
 					'enabled' => $certissim_enabled,
 				);
@@ -2023,5 +2028,80 @@ class Fianetfraud extends Module
 		$address_info['country'] = $country;
 		$address_info['shop_name'] = $shop_name;
 		return $address_info;
+	}
+	
+	/**
+	 * Save all orders on ps_certissim_order in ps_certissim_order_temp
+	 * 
+	 * @return boolean 
+	 */
+	public function saveCertissimOrders()
+	{
+		
+		$exist = $this->tableExists(_DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME);
+		
+		$sql = 'SELECT * FROM `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME.'`';
+		$query_result = Db::getInstance()->executeS($sql);
+		
+		if($exist)
+		{
+			Db::getInstance()->execute('CREATE TABLE `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME_TEMP.'` LIKE `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME.'`');
+			Db::getInstance()->execute('INSERT INTO `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME_TEMP.'` SELECT * FROM `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME.'`');
+			CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'certissim_orders_temp table created');
+			return true;
+		}
+		else{
+			CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'certissim_orders_temp table not created');
+			return false;
+		}
+	}
+	
+	
+	/**
+	 * Check if table table_search exists on database
+	 * 
+	 * @param type array
+	 * @return boolean 
+	 */
+	public function tableExists($table_search){
+		
+		$table_exist = false;
+		$sql = 'SHOW TABLES from `'._DB_NAME_.'`';
+		$query_result = Db::getInstance()->executeS($sql);
+
+		foreach ($query_result as $value)
+			foreach ($value as $table_name)
+				if($table_name == $table_search)
+					$table_exist = true;
+				
+		return $table_exist;
+	}
+	
+	/**
+	 * Restore all orders from ps_certissim_order_temp to ps_certissim_order and delete ps_certissim_order_temp table
+	 * 
+	 */
+	public function restoreCertissimOrders()
+	{
+		
+		$sql = 'SELECT * FROM `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME_TEMP.'`';
+		$query_result = Db::getInstance()->executeS($sql);
+		
+		if($query_result)
+			foreach ($query_result as $value)
+				self::insertCertissimOrder(array(
+				'id_cart' => (int)$value['id_cart'],
+				'id_order' => (int)$value['id_order'],
+				'id_certissim_state' => $value['id_certissim_state'],
+				'customer_ip_address' => $value['customer_ip_address'],
+				'date' => $value['date'],
+				'avancement' => $value['avancement'],
+				'score' => $value['score'],
+				'profil' => $value['profil'],
+				'detail' => $value['detail'],
+				'error' => $value['error']));
+			
+		Db::getInstance()->execute('DROP TABLE IF EXISTS `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME_TEMP.'`');
+
 	}
 }
