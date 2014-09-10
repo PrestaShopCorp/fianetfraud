@@ -2040,9 +2040,6 @@ class Fianetfraud extends Module
 		
 		$exist = $this->tableExists(_DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME);
 		
-		$sql = 'SELECT * FROM `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME.'`';
-		$query_result = Db::getInstance()->executeS($sql);
-		
 		if($exist)
 		{
 			Db::getInstance()->execute('CREATE TABLE `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME_TEMP.'` LIKE `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME.'`');
