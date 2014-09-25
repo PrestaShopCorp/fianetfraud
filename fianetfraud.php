@@ -2062,16 +2062,8 @@ class Fianetfraud extends Module
 	 */
 	public function tableExists($table_search){
 		
-		$table_exist = false;
-		$sql = 'SHOW TABLES from `'._DB_NAME_.'`';
-		$query_result = Db::getInstance()->executeS($sql);
-
-		foreach ($query_result as $value)
-			foreach ($value as $table_name)
-				if($table_name == $table_search)
-					$table_exist = true;
-				
-		return $table_exist;
+		return Db::getInstance()->ExecuteS('SHOW tables LIKE "'._DB_PREFIX_.pSQL($table_search).'"');
+		
 	}
 	
 	/**
