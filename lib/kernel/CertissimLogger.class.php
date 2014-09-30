@@ -36,8 +36,12 @@ class CertissimLogger
 	 */
 	private static function openFile($path)
 	{
-		$handle = fopen($path, 'a+');
-		return $handle;
+		if(is_writable($path)){
+			$handle = fopen($path, 'a+');
+			return $handle;
+		}
+		else
+			return null;
 	}
 
 	/**
@@ -88,7 +92,8 @@ class CertissimLogger
 		//builds the entry string
 		$entry = date('d-m-Y h:i:s')." | $from | $msg\r";
 		//write the entry into the log file
-		fwrite(self::$handle, $entry);
+		if(!is_null(self::$handle))
+			fwrite(self::$handle, $entry);
 	}
 
 	/**
@@ -102,8 +107,8 @@ class CertissimLogger
 		//opens the log file if it's not openned yet
 		if (is_null(self::$handle))
 			self::openHandle();
-
-		return fgets(self::$handle);
+		if(!is_null(self::$handle))
+			return fgets(self::$handle);
 	}
 
 }
