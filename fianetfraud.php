@@ -1069,10 +1069,8 @@ class Fianetfraud extends Module
 			if (!empty($product['product_reference']))
 				$product_ref = $product['product_reference'];
 				
-			$product_ref = str_replace("'", '', $product_ref);
-			$product_ref = str_replace('&', '', $product_ref);
-			$product_name = str_replace("'", '', $product['product_name']);
-			$product_name = str_replace("&", '', $product['product_name']);
+			$product_ref = str_replace(array('&', "'"), array('', ''), $product_ref);
+			$product_name = str_replace(array('&', "'"), array('', ''), $product['product_name']);
 			
 			//adds attributes ref, nb, prixunit, and sets the value of the element <product> with the product name
 			$xml_element_product->addAttribute('ref', CertissimTools::normalizeString($product_ref));
@@ -1187,7 +1185,7 @@ class Fianetfraud extends Module
 						$city = $info['prtown'];
 
 						//data is retrieved differently and depending on the version of the module
-						if ($socolissimo_installed_module->version < '2.8')
+						if (version_compare($socolissimo_installed_module->version, '2.8', '<'))
 						{
 							$address2 = $address1;
 							$address1 = $name;
@@ -1294,7 +1292,7 @@ class Fianetfraud extends Module
 					foreach ($socolissimoinfo as $info)
 					{
 						//get socolissimo informations
-						if ($socolissimo_installed_module->version < '4.2.03')
+						if (version_compare($socolissimo_installed_module->version, '4.2.03', '<'))
 						{
 							$delivery_mode = $info['type'];
 							$firstname = $info['firstname'];
@@ -1887,7 +1885,7 @@ class Fianetfraud extends Module
 		
 		if ($this->checkModuleisEnabledOrInstalled('soliberte'))
 		{
-			if ($socolissimo_installed_module->version < '4.2.03')
+			if (version_compare($socolissimo_installed_module->version, '4.2.03', '<'))
 				$sql = 'SELECT * FROM `'._DB_PREFIX_.'so_delivery` WHERE `cart_id`= '.(int)$id_order;
 			else
 				$sql = 'SELECT * FROM `'._DB_PREFIX_.'socolissimo_delivery_info` WHERE `id_cart`= '.(int)$id_order;
