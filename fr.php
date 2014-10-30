@@ -19,6 +19,11 @@ $_MODULE['<{fianetfraud}prestashop>fianetfraud_d21b21852259663a31649926f6d4dbd2'
 $_MODULE['<{fianetfraud}prestashop>fianetfraud_9452cbf9d98542a885b89637091850f9'] = 'Type de transport invalide pour le transporteur :';
 $_MODULE['<{fianetfraud}prestashop>fianetfraud_30e2e81881832870aa0cda6a691f9f1f'] = 'Rapidité de transport invalide pour le transporteur :';
 $_MODULE['<{fianetfraud}prestashop>fianetfraud_20cf98803d42aaf954553082b61f052d'] = 'Module SoColissimo non installé ou non activé';
+$_MODULE['<{fianetfraud}prestashop>fianetfraud_bed27b1eceadfdad595ff0de5aa119b9'] = 'Module SoColissimo Liberté non installé ou non activé';
+$_MODULE['<{fianetfraud}prestashop>fianetfraud_33fa6b5c27305146f9ca83ecaaa1414a'] = 'Module Mondial Relay non installé ou non activé';
+$_MODULE['<{fianetfraud}prestashop>fianetfraud_1901a4ca0314f8bee71bd665aae24702'] = 'Module Chronopost non installé ou non activé';
+$_MODULE['<{fianetfraud}prestashop>fianetfraud_fd978e851e7f629030cb998bbcdc0b80'] = 'Module SoColissimo Flexibilité non installé ou non activé';
+$_MODULE['<{fianetfraud}prestashop>fianetfraud_a2afff2dc2e950167ec8ed4da0e2090a'] = 'Module Ici relais non installé ou non activé';
 $_MODULE['<{fianetfraud}prestashop>fianetfraud_a1fa0abdb16ee47243dbed63215c60bc'] = 'Type de paiement invalide pour le mode :';
 $_MODULE['<{fianetfraud}prestashop>fianetfraud_6c58031e7824c3cd6febc2f2107b0652'] = 'Configuration enregistrée';
 $_MODULE['<{fianetfraud}prestashop>fianetfraud_0bd530bfa41d57e77d66384e0c6a7790'] = 'Des erreurs ont été rencontrées';

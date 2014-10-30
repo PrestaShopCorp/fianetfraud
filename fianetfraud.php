@@ -62,7 +62,9 @@ class Fianetfraud extends Module
 		6 => 'Module SoColissimo',
 		7 => 'Module SoColissimo Libert&eacute;',
 		8 => 'Module Mondial Relay',
-		9 => 'Chronopost relais'
+		9 => 'Chronopost relais',
+		10 => 'Module So Colissimo Flexibilité',
+		11 => 'Module Ici Relais',
 	);
 	private $carrier_speeds = array(
 		2 => 'Standard',
@@ -94,11 +96,12 @@ class Fianetfraud extends Module
 	const CERTISSIM_ORDER_TABLE_NAME = 'certissim_order';
 	const CERTISSIM_STATE_TABLE_NAME = 'certissim_state';
 	const CERTISSIM_ORDER_TABLE_NAME_TEMP = 'certissim_order_temp';
+	const CERTISSIM_MAX_CATEGORIES = 15;
 
 	public function __construct()
 	{
 		$this->name = 'fianetfraud';
-		$this->version = '3.11';
+		$this->version = '3.12';
 		$this->tab = 'payment_security';
 		$this->author = 'Fia-Net';
 
@@ -309,19 +312,36 @@ class Fianetfraud extends Module
 
 			if (!in_array(Tools::getValue('certissim_'.$id.'_carrier_speed'), array_merge(array_keys($this->carrier_speeds), array('0'))))
 				$this->_errors[] = $this->l('Invalid carrier speed for carrier:')." '".$shop_carrier['name']."'";
+				
 			if (Tools::getValue('certissim_'.$id.'_carrier_type') == 6)
-			{
-				if (_PS_VERSION_ >= '1.5')
-				//check if socolissimo is enabled on PS 1.5
-					$socolissimo_is_enabled = Module::isEnabled('socolissimo');
-				else
-				//check if socolissimo is enabled on PS 1.4
-					$socolissimo_is_enabled = $this->checkModuleisEnabled('socolissimo');
-
-				if (!Module::isInstalled('socolissimo') || !$socolissimo_is_enabled)
+				if (!$this->checkModuleisEnabledOrInstalled('socolissimo'))
 					$this->_errors[] = $this->l('Invalid carrier type for carrier:')." '".$shop_carrier['name']."'.
 						".$this->l('SoColissimo module is not installed or not enabled');
-			}
+						
+			if (Tools::getValue('certissim_'.$id.'_carrier_type') == 7)
+				if (!$this->checkModuleisEnabledOrInstalled('soliberte'))
+					$this->_errors[] = $this->l('Invalid carrier type for carrier:')." '".$shop_carrier['name']."'.
+						".$this->l('SoColissimo Liberté module is not installed or not enabled');
+						
+			if (Tools::getValue('certissim_'.$id.'_carrier_type') == 8)
+				if (!$this->checkModuleisEnabledOrInstalled('mondialrelay'))
+					$this->_errors[] = $this->l('Invalid carrier type for carrier:')." '".$shop_carrier['name']."'.
+						".$this->l('Mondial Relay module is not installed or not enabled');
+						
+			if (Tools::getValue('certissim_'.$id.'_carrier_type') == 9)
+				if (!$this->checkModuleisEnabledOrInstalled('chronopost'))
+					$this->_errors[] = $this->l('Invalid carrier type for carrier:')." '".$shop_carrier['name']."'.
+						".$this->l('Chronopost module is not installed or not enabled');
+						
+			if (Tools::getValue('certissim_'.$id.'_carrier_type') == 10)
+				if (!$this->checkModuleisEnabledOrInstalled('soflexibilite'))
+					$this->_errors[] = $this->l('Invalid carrier type for carrier:')." '".$shop_carrier['name']."'.
+						".$this->l('SoColissimo Flexibilité module is not installed or not enabled');
+						
+			if (Tools::getValue('certissim_'.$id.'_carrier_type') == 11)
+				if (!$this->checkModuleisEnabledOrInstalled('icirelais'))
+					$this->_errors[] = $this->l('Invalid carrier type for carrier:')." '".$shop_carrier['name']."'.
+						".$this->l('Ici relais module is not installed or not enabled');
 
 			if (Tools::getValue('certissim_'.$id.'_carrier_type') == 1)
 				$delivery_shop = true;
@@ -360,8 +380,10 @@ class Fianetfraud extends Module
 			/** categories configuration * */
 			//lists all product categories
 			$shop_categories = $this->loadProductCategories();
-			foreach (array_keys($shop_categories) as $id)
-				Configuration::updateValue('CERTISSIM_'.$id.'_PRODUCT_TYPE', Tools::getValue('certissim_'.$id.'_product_type'));
+			
+			if(count($shop_categories) < self::CERTISSIM_MAX_CATEGORIES)
+				foreach (array_keys($shop_categories) as $id)
+					Configuration::updateValue('CERTISSIM_'.$id.'_PRODUCT_TYPE', Tools::getValue('certissim_'.$id.'_product_type'));
 
 			/** carriers update * */
 			//lists all carriers
@@ -1046,11 +1068,15 @@ class Fianetfraud extends Module
 			//prefers local reference if defined
 			if (!empty($product['product_reference']))
 				$product_ref = $product['product_reference'];
+				
+			$product_ref = str_replace(array('&', "'"), array('', ''), $product_ref);
+			$product_name = str_replace(array('&', "'"), array('', ''), $product['product_name']);
+			
 			//adds attributes ref, nb, prixunit, and sets the value of the element <product> with the product name
 			$xml_element_product->addAttribute('ref', CertissimTools::normalizeString($product_ref));
 			$xml_element_product->addAttribute('nb', $product['product_quantity']);
 			$xml_element_product->addAttribute('prixunit', $product['total_price']);
-			$xml_element_product->setValue(($product['product_name']));
+			$xml_element_product->setValue(($product_name));
 
 			//adds the element <product> to the element <list>
 			$xml_element_products_list->addProduit($xml_element_product);
@@ -1136,10 +1162,11 @@ class Fianetfraud extends Module
 				break;
 			//if delivery mode is socolissimo
 			case '6':
+			case '10':
+				$socolissimoinfo = $this->getSoColissimoInfo($order->id_cart, $carrier->external_module_name);
 
-				$socolissimoinfo = $this->getSoColissimoInfo($order->id_cart);
-
-				$socolissimo_installed_module = Module::getInstanceByName('socolissimo');
+				//socolissimo or soflexibilite module
+				$socolissimo_installed_module = Module::getInstanceByName($carrier->external_module_name);
 
 				if ($socolissimoinfo != false)
 				{
@@ -1158,7 +1185,7 @@ class Fianetfraud extends Module
 						$city = $info['prtown'];
 
 						//data is retrieved differently and depending on the version of the module
-						if ($socolissimo_installed_module->version < '2.8')
+						if (version_compare($socolissimo_installed_module->version, '2.8', '<'))
 						{
 							$address2 = $address1;
 							$address1 = $name;
@@ -1230,6 +1257,27 @@ class Fianetfraud extends Module
 				else
 				{
 					$real_carrier_type = 4;
+					
+					$xml_element_delivery_customer = new CertissimUtilisateur(
+									'livraison',
+									$customer->id_gender == 2 ? $this->l('Miss') : $this->l('Mister'),
+									$address_delivery->lastname,
+									$address_delivery->firstname,
+									$address_delivery->company,
+									$address_delivery->phone,
+									$address_delivery->phone_mobile,
+									null,
+									null);
+									
+					$xml_element_delivery_address = new CertissimAdresse(
+						'livraison',
+						$address_delivery->address1,
+						$address_delivery->address2,
+						$address_delivery->postcode,
+						$address_delivery->city,
+						$country->name[$id_lang],
+						null
+				);
 					CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'Flux incorrect : Module SoColissimo non installé ou non activé');
 				}
 				break;
@@ -1238,32 +1286,48 @@ class Fianetfraud extends Module
 			case '7':
 
 				$socolissimoinfo = $this->getSoColissimoLiberteInfo($id_order);
-
+				$socolissimo_installed_module = Module::getInstanceByName('soliberte');
 				if ($socolissimoinfo != false)
 				{
 					foreach ($socolissimoinfo as $info)
 					{
 						//get socolissimo informations
-						$delivery_mode = $info['type'];
-						$firstname = $info['firstname'];
-						$name = $info['lastname'];
-						if ($info['telephone'] != null && $info['telephone'] != '' && $info['telephone'] != '0000000000')
-							$mobile_phone = $info['telephone'];
-						$address1 = $info['adresse1'];
-						$address2 = $info['adresse2'];
-						$enseigne = $info['libelle'];
-						$zipcode = $info['code_postal'];
-						$city = $info['commune'];
-						$country = 'FR';
+						if (version_compare($socolissimo_installed_module->version, '4.2.03', '<'))
+						{
+							$delivery_mode = $info['type'];
+							$firstname = $info['firstname'];
+							$name = $info['lastname'];
+							if ($info['telephone'] != null && $info['telephone'] != '' && $info['telephone'] != '0000000000')
+								$mobile_phone = $info['telephone'];
+							$address1 = $info['adresse1'];
+							$address2 = $info['adresse2'];
+							$enseigne = $info['libelle'];
+							$zipcode = $info['code_postal'];
+							$city = $info['commune'];
+							$country = 'FR';
+						}
+						else{
+							$delivery_mode = $info['delivery_mode'];
+							$firstname = $info['prfirstname'];
+							$name = $info['prname'];
+							$mobile_phone = $info['cephonenumber'];
+							$company_name = $info['cecompanyname'];
+							$address1 = $info['pradress1'];
+							$address2 = $info['pradress2'];
+							$address3 = $info['pradress3'];
+							$address4 = $info['pradress4'];
+							$zipcode = $info['przipcode'];
+							$city = $info['prtown'];
+							$country = 'FR';
+							$enseigne = $name;
+						}
 					}
 
 					//if delivery mode is DOM or RDV, <adresse type="livraison" ...> and <utilisateur type="livraison" ...> added
 					if ($delivery_mode == 'DOM' || $delivery_mode == 'RDV')
 					{
-
 						if ($delivery_mode == 'DOM')
 						{
-
 							$xml_element_delivery_customer = new CertissimUtilisateur(
 									'livraison',
 									$customer->id_gender == 2 ? $this->l('Miss') : $this->l('Mister'),
@@ -1331,7 +1395,28 @@ class Fianetfraud extends Module
 				else
 				{
 					$real_carrier_type = 4;
-					CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'Flux incorrect : Module SoColissimo Liberté non installé ou non activé');
+					
+					$xml_element_delivery_customer = new CertissimUtilisateur(
+									'livraison',
+									$customer->id_gender == 2 ? $this->l('Miss') : $this->l('Mister'),
+									$address_delivery->lastname,
+									$address_delivery->firstname,
+									$address_delivery->company,
+									$address_delivery->phone,
+									$address_delivery->phone_mobile,
+									null,
+									null);
+									
+					$xml_element_delivery_address = new CertissimAdresse(
+						'livraison',
+						$address_delivery->address1,
+						$address_delivery->address2,
+						$address_delivery->postcode,
+						$address_delivery->city,
+						$country->name[$id_lang],
+						null
+				);
+					CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'Flux incorrect : Module SoColissimo non installé ou non activé');
 				}
 				break;
 			case '8':
@@ -1415,6 +1500,46 @@ class Fianetfraud extends Module
 					}
 					else
 						CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'Flux incorrect : Module Chronopost non installé ou non activé');
+				break;
+				
+				case '11':
+					
+					if ($this->checkModuleisEnabledOrInstalled('icirelais'))
+					{
+						$icirelaisinfo = $this->getIciRelaisInfo($cart->id);
+						foreach ($icirelaisinfo as $info)
+						{
+							//get mondialrelay information
+							$address1 = $info['address1'];
+							$address2 = $info['address2'];
+							$enseigne = $info['company'];
+							$zipcode = $info['postcode'];
+							$city = $info['city'];
+							$country = $info['iso_code'];
+						}
+						
+						$xml_element_delivery_customer = new CertissimUtilisateur(
+						'livraison',
+						$customer->id_gender == 2 ? $this->l('Miss') : $this->l('Mister'),
+						$address_delivery->lastname,
+						$address_delivery->firstname,
+						null,
+						$address_delivery->phone,
+						$address_delivery->phone_mobile,
+						null,
+						null);
+
+						$adressepointrelais = new CertissimXMLElement('<adresse></adresse>');
+						$adressepointrelais->childRue1($address1);
+						$adressepointrelais->childRue2($address2);
+						$adressepointrelais->childCpostal($zipcode);
+						$adressepointrelais->childVille($city);
+						$adressepointrelais->childPays($country);
+						$xml_pointrelais = new CertissimPointrelais(null, $enseigne, $adressepointrelais);
+						$real_carrier_type = 2;
+					}
+					else
+						CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'Flux incorrect : Module Ici Relais non installé ou non activé');
 				break;
 
 			default:
@@ -1519,7 +1644,9 @@ class Fianetfraud extends Module
 
 		//sends the stream and catches the response
 		$res = $sac->sendStacking($stack);
-		$validstack = new CertissimValidstackResponse($res->getXML());
+		
+		if($res != null)
+			$validstack = new CertissimValidstackResponse($res->getXML());
 
 		//if an error occured: log
 		if ($res === false)
@@ -1726,21 +1853,14 @@ class Fianetfraud extends Module
 	}
 
 	/**
-	 * Get all SoColissimo delivery information
+	 * Get all SoColissimo delivery information for socolissimo officiel and socolissimo flexibilité 2.1.2
 	 * 
 	 * @param type $id_order
 	 * @return array 
 	 */
-	public function getSoColissimoInfo($id_order)
+	public function getSoColissimoInfo($id_order, $module_name)
 	{
-		if (_PS_VERSION_ >= '1.5')
-		//check if socolissimo is enabled on PS 1.5
-			$socolissimo_is_enabled = Module::isEnabled('socolissimo');
-		else
-		//check if socolissimo is enabled on PS 1.4
-			$socolissimo_is_enabled = $this->checkModuleisEnabled('socolissimo');
-
-		if (Module::isInstalled('socolissimo') || $socolissimo_is_enabled)
+		if ($this->checkModuleisEnabledOrInstalled($module_name))
 		{
 			$sql = 'SELECT * FROM `'._DB_PREFIX_.'socolissimo_delivery_info` WHERE `id_cart`= '.(int)$id_order;
 			$query_result = Db::getInstance()->executeS($sql);
@@ -1748,7 +1868,7 @@ class Fianetfraud extends Module
 		}
 		else
 		{
-			CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'Module SoColissimo non installé ou non activé');
+			KwixoLogger::insertLogKwixo(__METHOD__.' : '.__LINE__, 'Module So Colissimo non installé ou non activé');
 			return false;
 		}
 	}
@@ -1761,22 +1881,21 @@ class Fianetfraud extends Module
 	 */
 	public function getSoColissimoLiberteInfo($id_order)
 	{
-		if (_PS_VERSION_ >= '1.5')
-		//check if socolissimo is enabled on PS 1.5
-			$socolissimo_is_enabled = Module::isEnabled('soliberte');
-		else
-		//check if socolissimo is enabled on PS 1.4
-			$socolissimo_is_enabled = $this->checkModuleisEnabled('soliberte');
-
-		if (Module::isInstalled('soliberte') || $socolissimo_is_enabled)
+		$socolissimo_installed_module = Module::getInstanceByName('soliberte');
+		
+		if ($this->checkModuleisEnabledOrInstalled('soliberte'))
 		{
-			$sql = 'SELECT * FROM `'._DB_PREFIX_.'so_delivery` WHERE `cart_id`= '.(int)$id_order;
+			if (version_compare($socolissimo_installed_module->version, '4.2.03', '<'))
+				$sql = 'SELECT * FROM `'._DB_PREFIX_.'so_delivery` WHERE `cart_id`= '.(int)$id_order;
+			else
+				$sql = 'SELECT * FROM `'._DB_PREFIX_.'socolissimo_delivery_info` WHERE `id_cart`= '.(int)$id_order;
+				
 			$query_result = Db::getInstance()->executeS($sql);
 			return $query_result;
 		}
 		else
 		{
-			CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, 'Module SoColissimo Liberté non installé ou non activé');
+			KwixoLogger::insertLogKwixo(__METHOD__.' : '.__LINE__, 'Module SoColissimo Liberté non installé ou non activé');
 			return false;
 		}
 	}
@@ -1789,14 +1908,7 @@ class Fianetfraud extends Module
 	 */
 	public function getMondialRelayInfo($id_cart)
 	{
-		if (_PS_VERSION_ >= '1.5')
-		//check if mondialrelay is enabled on PS 1.5
-			$mondialrelay_is_enabled = Module::isEnabled('mondialrelay');
-		else
-		//check if mondialrelay is enabled on PS 1.4
-			$mondialrelay_is_enabled = $this->checkModuleisEnabled('mondialrelay');
-
-		if (Module::isInstalled('mondialrelay') || $mondialrelay_is_enabled)
+		if ($this->checkModuleisEnabledOrInstalled('mondialrelay'))
 		{
 			$sql = 'SELECT * FROM `'._DB_PREFIX_.'mr_selected` mr 
 				JOIN `'._DB_PREFIX_.'mr_method` m
@@ -1808,6 +1920,30 @@ class Fianetfraud extends Module
 		else
 		{
 			CertissimLogger::insertLogKwixo(__METHOD__.' : '.__LINE__, 'Module Mondial Relay non installé ou non activé');
+			return false;
+		}
+	}	
+	
+	/**
+	 * Get all Ici Relais delivery information
+	 * 
+	 * @param type $id_order
+	 * @return array 
+	 */
+	public function getIciRelaisInfo($id_cart)
+	{
+		if ($this->checkModuleisEnabledOrInstalled('icirelais'))
+		{
+			$sql = 'SELECT * FROM `'._DB_PREFIX_.'icirelais_selected` ir 
+				JOIN `'._DB_PREFIX_.'country` c 
+					ON ir.id_country = c.id_country 
+					WHERE `id_cart`= '.(int)$id_cart;
+			$query_result = Db::getInstance()->executeS($sql);
+			return $query_result;
+		}
+		else
+		{
+			KwixoLogger::insertLogKwixo(__METHOD__.' : '.__LINE__, 'Module Ici Relais non installé ou non activé');
 			return false;
 		}
 	}
@@ -1859,6 +1995,24 @@ class Fianetfraud extends Module
 	public function checkModuleisEnabled($module_name)
 	{
 		return (bool)Db::getInstance()->getValue('SELECT `active` FROM `'._DB_PREFIX_.'module` WHERE `name` = \''.pSQL($module_name).'\'');
+	}
+	
+	/**
+	 * return if module is enabled or installed
+	 * 
+	 * @param string $module_name
+	 * 
+	 */
+	public function checkModuleisEnabledOrInstalled($module_name)
+	{
+		if (version_compare(_PS_VERSION_, '1.5', '>='))
+		//check if module is enabled on PS 1.5
+			$module_is_enabled = Module::isEnabled($module_name);
+		else
+		//check if module is enabled on PS 1.4
+			$module_is_enabled = $this->checkModuleisEnabled($module_name);
+		
+		return (bool)(Module::isInstalled($module_name) || $module_is_enabled);
 	}
 
 	/**
@@ -2038,7 +2192,10 @@ class Fianetfraud extends Module
 	public function saveCertissimOrders()
 	{
 		
-		$exist = $this->tableExists(_DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME);
+		$exist = $this->tableExists(self::CERTISSIM_ORDER_TABLE_NAME);
+		
+		$sql = 'SELECT * FROM `'._DB_PREFIX_.self::CERTISSIM_ORDER_TABLE_NAME.'`';
+		$query_result = Db::getInstance()->executeS($sql);
 		
 		if($exist)
 		{
@@ -2060,11 +2217,12 @@ class Fianetfraud extends Module
 	 * @param type array
 	 * @return boolean 
 	 */
-	public function tableExists($table_search){
-		
+	
+	public function tableExists($table_search)
+	{
 		return Db::getInstance()->ExecuteS('SHOW tables LIKE "'._DB_PREFIX_.pSQL($table_search).'"');
-		
 	}
+
 	
 	/**
 	 * Restore all orders from ps_certissim_order_temp to ps_certissim_order and delete ps_certissim_order_temp table

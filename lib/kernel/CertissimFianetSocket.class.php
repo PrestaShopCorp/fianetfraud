@@ -36,7 +36,7 @@ class CertissimFianetSocket extends CertissimMother
 
 	protected $host;
 	protected $port;
-	protected $is_ssl = false;
+	protected $is_ssl = true;
 	protected $method = 'POST';
 	protected $data;
 	protected $path;
@@ -146,10 +146,21 @@ class CertissimFianetSocket extends CertissimMother
 	{
 		$error = '';
 		$errno = '';
-		if ($this->is_ssl)
-			$socket = fsockopen('ssl://'.$this->host, $this->port, $errno, $error, CertissimFianetSocket::TIMEOUT);
+		//connects with TLS/SSL protocol if secure connection asked, HTTP protocol otherwise
+		if ($this->is_ssl){
+			$socket = fsockopen('tls://' . $this->host, $this->port, $this->errno, $this->errstr, CertissimFianetSocket::TIMEOUT);
+			if($socket == false){
+				CertissimLogger::insertLog(__METHOD__ . ' : ' . __LINE__, "Connexion TLS échouée, envoi des données impossible sur : " . $this->host);
+				
+				$socket = fsockopen('ssl://' . $this->host, $this->port, $this->errno, $this->errstr, CertissimFianetSocket::TIMEOUT);
+				if($socket == false){
+					CertissimLogger::insertLog(__METHOD__ . ' : ' . __LINE__, "Connexion SSL échouée, envoi des données impossible sur : " . $this->host);
+				}
+			}
+		}
 		else
-			$socket = fsockopen($this->host, $this->port);
+		  $socket = fsockopen($this->host, $this->port);
+		  
 		if ($socket !== false)
 		{
 			$res = '';
