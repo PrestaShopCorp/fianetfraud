@@ -75,7 +75,8 @@ class CertissimLogger
 		}
 
 		self::$handle = self::openFile($log_filename);
-		register_shutdown_function('fclose', self::$handle);
+		if(!is_null(self::$handle))
+			register_shutdown_function('fclose', self::$handle);
 	}
 
 	/**
