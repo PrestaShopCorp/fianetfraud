@@ -101,7 +101,7 @@ class Fianetfraud extends Module
 	public function __construct()
 	{
 		$this->name = 'fianetfraud';
-		$this->version = '3.12';
+		$this->version = '3.13';
 		$this->tab = 'payment_security';
 		$this->author = 'Fia-Net';
 
@@ -721,6 +721,8 @@ class Fianetfraud extends Module
 			//if the certissim state is unknown: end of process
 			default:
 				$template_name = 'not-concerned';
+				$paid = false;
+				$this->smarty->assign('txt', $this->l('The order has not been paid yet, and the payment method used is not configured for fraud screening.'));
 				CertissimLogger::insertLog(__METHOD__.' : '.__LINE__, "Statut '$order_label' non reconnu pour la commande ".$params['id_order']);
 				break;
 		}
