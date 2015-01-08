@@ -29,7 +29,7 @@ class CertissimControl extends CertissimXMLElement
 
 	public function __construct()
 	{
-		parent::__construct("<control fianetmodule='api_prestashop_certissim' version='3.0' certissimmodule='3.12'></control>");
+		parent::__construct("<control fianetmodule='api_prestashop_certissim' version='3.0' certissimmodule='3.13'></control>");
 	}
 
 	/**
